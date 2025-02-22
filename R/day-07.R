@@ -8,52 +8,55 @@ library(tidyverse)
 # Read in COVID-19 data
 covid_data <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties-recent.csv")
 
-# Get the most recent date in the dataset
-latest_date <- max(covid_data$date)
+library(tidyverse)
 
-# Identify the six states with the most cases
+# Identify top 6 states
 top_states <- covid_data %>%
-  filter(date == latest_date) %>%
   group_by(state) %>%
-  summarise(total_cases = sum(cases, na.rm = TRUE)) %>%
+  summarize(total_cases = max(cases, na.rm = TRUE)) %>%
   arrange(desc(total_cases)) %>%
   slice_head(n = 6) %>%
-  pull(state) # Extracts state names as a vector
+  pull(state)
 
-# Filter for only the top 6 states
+# Filter data for those states
 filtered_data <- covid_data %>%
-  filter(state %in% top_states)
+  filter(state %in% top_states) %>%
+  group_by(state, date) %>%
+  summarize(daily_cases = sum(cases, na.rm = TRUE)) %>%
+  ungroup()
 
-# Create the faceted line plot
-covid_plot <- ggplot(filtered_data, aes(x = date, y = cases, group = state, color = state)) +
-  geom_line() + 
-  labs(title = "COVID-19 Cases in the 6 Most Affected States",
+# Plot
+ggplot(filtered_data, aes(x = as.Date(date), y = daily_cases, color = state)) +
+  geom_line() +
+  facet_wrap(~state, scales = "free_y") +
+  theme_minimal() +
+  labs(title = "COVID-19 Cases in Top 6 States",
        x = "Date",
-       y = "Number of Cases",
-       color = "State") +
-  facet_wrap(~ state, scales = "free_y") +  # Each state gets its own plot
-  theme_minimal() # Clean theme
+       y = "Daily Cases")
 
-# Ensure img directory exists
-if (!dir.exists("img")) dir.create("img")
+ggsave("img/covid_top_states.png")
+library(tidyverse)
 
-# Save the plot
-ggsave("img/covid_top_states.png", plot = covid_plot, width = 10, height = 6, dpi = 300)
-# Summarize total cases per day for the entire USA
-usa_daily_cases <- covid_data %>%
+# Ensure date is correctly formatted
+covid_data <- covid_data %>%
+  mutate(date = as.Date(date))
+
+# Compute daily new cases (difference from the previous day)
+usa_cases <- covid_data %>%
+  arrange(date) %>%
+  group_by(state) %>%
+  mutate(daily_cases = cases - lag(cases, default = first(cases))) %>%
+  ungroup() %>%
   group_by(date) %>%
-  summarise(total_cases = sum(cases, na.rm = TRUE))
+  summarize(total_daily_cases = sum(daily_cases, na.rm = TRUE))
 
-# Create the column plot
-usa_cases_plot <- ggplot(usa_daily_cases, aes(x = date, y = total_cases)) +
-  geom_col(fill = "steelblue") +  # Bar color
-  labs(title = "Daily Total COVID-19 Cases in the USA",
+# Plot
+ggplot(usa_cases, aes(x = date, y = total_daily_cases)) +
+  geom_col(fill = "steelblue") +
+  theme_minimal() +
+  labs(title = "Daily COVID-19 Cases in the USA",
        x = "Date",
-       y = "Number of Cases") +
-  theme_minimal() # Clean theme
+       y = "New Cases")
 
-# Ensure img directory exists
-if (!dir.exists("img")) dir.create("img")
+ggsave("img/usa_daily_cases.png")
 
-# Save the plot
-ggsave("img/usa_daily_cases.png", plot = usa_cases_plot, width = 10, height = 6, dpi = 300)
