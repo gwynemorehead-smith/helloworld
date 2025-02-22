@@ -39,3 +39,21 @@ if (!dir.exists("img")) dir.create("img")
 
 # Save the plot
 ggsave("img/covid_top_states.png", plot = covid_plot, width = 10, height = 6, dpi = 300)
+# Summarize total cases per day for the entire USA
+usa_daily_cases <- covid_data %>%
+  group_by(date) %>%
+  summarise(total_cases = sum(cases, na.rm = TRUE))
+
+# Create the column plot
+usa_cases_plot <- ggplot(usa_daily_cases, aes(x = date, y = total_cases)) +
+  geom_col(fill = "steelblue") +  # Bar color
+  labs(title = "Daily Total COVID-19 Cases in the USA",
+       x = "Date",
+       y = "Number of Cases") +
+  theme_minimal() # Clean theme
+
+# Ensure img directory exists
+if (!dir.exists("img")) dir.create("img")
+
+# Save the plot
+ggsave("img/usa_daily_cases.png", plot = usa_cases_plot, width = 10, height = 6, dpi = 300)
