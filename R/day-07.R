@@ -2,10 +2,40 @@
 # Date: 2025-02-21
 # Purpose: Read and analyze COVID-19 data
 
-# Load necessary package
-library(readr)
+# Load necessary libraries
+library(tidyverse)
 
 # Read in COVID-19 data
 covid_data <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties-recent.csv")
-# View first few rows of the dataset
-head(covid_data)
+
+# Get the most recent date in the dataset
+latest_date <- max(covid_data$date)
+
+# Identify the six states with the most cases
+top_states <- covid_data %>%
+  filter(date == latest_date) %>%
+  group_by(state) %>%
+  summarise(total_cases = sum(cases, na.rm = TRUE)) %>%
+  arrange(desc(total_cases)) %>%
+  slice_head(n = 6) %>%
+  pull(state) # Extracts state names as a vector
+
+# Filter for only the top 6 states
+filtered_data <- covid_data %>%
+  filter(state %in% top_states)
+
+# Create the faceted line plot
+covid_plot <- ggplot(filtered_data, aes(x = date, y = cases, group = state, color = state)) +
+  geom_line() + 
+  labs(title = "COVID-19 Cases in the 6 Most Affected States",
+       x = "Date",
+       y = "Number of Cases",
+       color = "State") +
+  facet_wrap(~ state, scales = "free_y") +  # Each state gets its own plot
+  theme_minimal() # Clean theme
+
+# Ensure img directory exists
+if (!dir.exists("img")) dir.create("img")
+
+# Save the plot
+ggsave("img/covid_top_states.png", plot = covid_plot, width = 10, height = 6, dpi = 300)
